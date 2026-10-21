@@ -52,6 +52,7 @@ namespace UnityConsole
 
         private static GUIStyle timestampStyle;
         private static GUIStyle[] messageStyles;
+        private static GUIStyle[] colorStyles;
         private static float timestampWidth;
 
         private const string inputControlName = "input";
@@ -99,6 +100,14 @@ namespace UnityConsole
                 var style = new GUIStyle(Style) { richText = false };
                 style.normal.textColor = i == 1 ? new Color(1f, .8f, 0f) : i == 2 ? new Color(1f, .33f, .33f) : Color.white;
                 messageStyles[i] = style;
+            }
+
+            colorStyles = new GUIStyle[Enum.GetValues(typeof(ConsoleTextColor)).Length];
+            foreach (ConsoleTextColor color in Enum.GetValues(typeof(ConsoleTextColor)))
+            {
+                var style = new GUIStyle(Style) { richText = false };
+                style.normal.textColor = ConsoleTextColors.Get(color);
+                colorStyles[(int)color] = style;
             }
 
             guiProxy = hostObject.AddComponent<OnGUIProxy>();
@@ -221,20 +230,43 @@ namespace UnityConsole
             {
                 var entry = recent[i];
                 float y = areaRect.height - lineHeight * (recent.Count - i);
-                // The message is drawn with a plain (non-rich) style, so angle brackets in the text are shown as-is.
+                // Segments are drawn with plain (non-rich) styles, so angle brackets in the text are shown as-is.
                 GUI.Label(new Rect(0, y, timestampWidth, lineHeight), $"<color=#888>{entry.Timestamp:HH:mm:ss}</color>", timestampStyle);
-                float msgX = timestampWidth;
-                GUI.Label(new Rect(msgX, y, areaRect.width - msgX, lineHeight), FitToWidth(entry.Message, areaRect.width - msgX - Style.contentOffset.x * 2), messageStyles[(int)entry.Level]);
+                DrawSegments(entry, new Rect(timestampWidth, y, areaRect.width - timestampWidth, lineHeight));
             }
             GUI.EndClip();
         }
 
-        private static string FitToWidth (string text, float maxWidth)
+        // Draws the entry segments left-to-right within rect. A color segment sets the style for all following
+        // text; when the line overflows it is truncated with an ellipsis at the overflow point.
+        private static void DrawSegments (ConsoleLog.Entry entry, Rect rect)
         {
-            if (Style.CalcSize(new GUIContent(text)).x <= maxWidth) return text;
-            while (text.Length > 1 && Style.CalcSize(new GUIContent(text + "…")).x > maxWidth)
-                text = text.Substring(0, text.Length - 1);
-            return text + "…";
+            float maxWidth = rect.width - Style.contentOffset.x * 2;
+            ConsoleTextColor? currentColor = null;
+            float x = 0f;
+
+            foreach (var segment in entry.Segments)
+            {
+                if (segment.Color.HasValue) currentColor = segment.Color.Value;
+                if (string.IsNullOrEmpty(segment.Text)) continue;
+
+                var style = currentColor.HasValue ? colorStyles[(int)currentColor.Value] : messageStyles[(int)entry.Level];
+                float width = style.CalcSize(new GUIContent(segment.Text)).x;
+                if (x + width <= maxWidth)
+                {
+                    GUI.Label(new Rect(rect.x + x, rect.y, width, rect.height), segment.Text, style);
+                    x += width;
+                }
+                else
+                {
+                    float remaining = Mathf.Max(0f, maxWidth - x);
+                    string text = segment.Text;
+                    while (text.Length > 1 && style.CalcSize(new GUIContent(text + "…")).x > remaining)
+                        text = text.Substring(0, text.Length - 1);
+                    GUI.Label(new Rect(rect.x + x, rect.y, remaining, rect.height), text + "…", style);
+                    break;
+                }
+            }
         }
 
         private static void ExecuteInput ()
