@@ -83,6 +83,14 @@ namespace UnityConsole
             return builder.ToString();
         }
 
+        /// <summary>
+        /// Removes all entries from the on-screen log buffer. Nothing is logged about the clear itself.
+        /// </summary>
+        public static void Clear ()
+        {
+            lock (gate) entries.Clear();
+        }
+
         internal static int Count
         {
             get { lock (gate) return entries.Count; }

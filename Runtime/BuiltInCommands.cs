@@ -13,22 +13,27 @@ namespace UnityConsole
     internal static class BuiltInCommands
     {
         public const string HelpAlias = "help";
+        public const string ClearAlias = "clear";
 
         // Commands per help page; more than this many commands makes `help` paginate.
         internal const int PageSize = 20;
 
         // Aliases that project code cannot use with [ConsoleCommand].
-        internal static readonly string[] ReservedAliases = { HelpAlias };
+        internal static readonly string[] ReservedAliases = { HelpAlias, ClearAlias };
 
         // alias -> handler, merged into CommandDatabase by RegisterCommands. The help handler is not
         // invoked through the generic dispatch: its page argument is optional (see ExecuteCommand).
         internal static readonly IReadOnlyDictionary<string, MethodInfo> All = new Dictionary<string, MethodInfo>(StringComparer.OrdinalIgnoreCase)
         {
-            [HelpAlias] = typeof(BuiltInCommands).GetMethod(nameof(Help), BindingFlags.Public | BindingFlags.Static)
+            [HelpAlias] = typeof(BuiltInCommands).GetMethod(nameof(Help), BindingFlags.Public | BindingFlags.Static),
+            [ClearAlias] = typeof(BuiltInCommands).GetMethod(nameof(Clear), BindingFlags.Public | BindingFlags.Static)
         };
 
         // Registered in the database for completion and the help listing; not invoked directly.
         public static void Help (int page) => Show(page);
+
+        // Empties the on-screen log buffer without logging anything about it.
+        public static void Clear () => ConsoleLog.Clear();
 
         internal static void Dispatch (string[] args)
         {
