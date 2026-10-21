@@ -47,12 +47,15 @@ namespace UnityConsole
             int pages = Math.Max(1, (total + PageSize - 1) / PageSize);
             int page = Mathf.Clamp(requestedPage, 1, pages);
 
+            // Orange header: which page is shown and how many there are in total.
+            ConsoleLog.Info(ConsoleTextColor.Orange, $"help {page}/{pages}");
+
             // One command per line: alias + usage snippet.
             foreach (var kv in entries.Skip((page - 1) * PageSize).Take(PageSize))
                 ConsoleLog.Info($"{kv.Key} {UsageSnippet(kv)}".TrimEnd());
 
-            if (pages > 1)
-                ConsoleLog.Info($"help: page {page}/{pages}, {total} commands — use `help N` for other pages");
+            // Orange separator closes the listing.
+            ConsoleLog.Info(ConsoleTextColor.Orange, new string('=', 60));
         }
 
         static string UsageSnippet (KeyValuePair<string, MethodInfo> kv)
