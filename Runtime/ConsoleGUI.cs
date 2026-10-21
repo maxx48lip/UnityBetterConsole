@@ -49,6 +49,10 @@ namespace UnityConsole
         internal static GUIStyle Style { get; private set; }
         internal static float LogAreaHeight { get; private set; }
 
+        private static GUIStyle timestampStyle;
+        private static GUIStyle[] messageStyles;
+        private static float timestampWidth;
+
         private const string inputControlName = "input";
         private static ConsoleGUI instance;
         private static readonly Regex regex = new Regex("'(.+?)'|\"(.+?)\"|([^ ]+)", RegexOptions.Compiled);
@@ -82,6 +86,15 @@ namespace UnityConsole
                 fontSize = Mathf.FloorToInt(14 * (Scale.x + Scale.y) / 2),
                 font = Font
             };
+
+            timestampStyle = new GUIStyle(Style);
+            messageStyles = new GUIStyle[3];
+            for (int i = 0; i < messageStyles.Length; i++)
+            {
+                var style = new GUIStyle(Style) { richText = false };
+                style.normal.textColor = i == 1 ? new Color(1f, .8f, 0f) : i == 2 ? new Color(1f, .33f, .33f) : Color.white;
+                messageStyles[i] = style;
+            }
 
             guiProxy = hostObject.AddComponent<OnGUIProxy>();
             guiProxy.OnGUIDelegate = instance.DrawGUI;
@@ -180,29 +193,20 @@ namespace UnityConsole
             float lineHeight = Style.fontSize + Mathf.CeilToInt(10 * Scale.y);
             LogAreaHeight = lineHeight * recent.Count;
             var areaRect = new Rect(consoleRect.x, consoleRect.yMax, consoleRect.width, LogAreaHeight);
+            if (timestampWidth == 0f)
+                timestampWidth = timestampStyle.CalcSize(new GUIContent("<color=#888>00:00:00</color>")).x + Style.contentOffset.x * 3;
             GUI.BeginClip(areaRect);
             for (int i = 0; i < recent.Count; i++)
             {
-                string message = FitToWidth(EscapeRichText(recent[i].Message), areaRect.width - Style.contentOffset.x * 2);
-                var line = BuildLine(recent[i], message);
-                GUI.Label(new Rect(0, areaRect.height - lineHeight * (recent.Count - i), areaRect.width, lineHeight), line, Style);
+                var entry = recent[i];
+                float y = areaRect.height - lineHeight * (recent.Count - i);
+                // The message is drawn with a plain (non-rich) style, so angle brackets in the text are shown as-is.
+                GUI.Label(new Rect(0, y, timestampWidth, lineHeight), $"<color=#888>{entry.Timestamp:HH:mm:ss}</color>", timestampStyle);
+                float msgX = timestampWidth;
+                GUI.Label(new Rect(msgX, y, areaRect.width - msgX, lineHeight), FitToWidth(entry.Message, areaRect.width - msgX - Style.contentOffset.x * 2), messageStyles[(int)entry.Level]);
             }
             GUI.EndClip();
         }
-
-        private static string BuildLine (ConsoleLog.Entry entry, string escapedMessage)
-        {
-            string open, close;
-            switch (entry.Level)
-            {
-                case ConsoleLog.Level.Warning: open = "<color=#ffcc00>"; close = "</color>"; break;
-                case ConsoleLog.Level.Error: open = "<color=#ff5555>"; close = "</color>"; break;
-                default: open = ""; close = ""; break;
-            }
-            return $"<color=#888>{entry.Timestamp:HH:mm:ss}</color> {open}{escapedMessage}{close}";
-        }
-
-        private static string EscapeRichText (string text) => text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
 
         private static string FitToWidth (string text, float maxWidth)
         {
