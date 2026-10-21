@@ -13,7 +13,7 @@ namespace UnityConsole
         Yellow,
         Lime,
         Pink,
-        Gray,
+        Toxic,
         LightGray,
         Cyan,
         Purple,
@@ -21,7 +21,7 @@ namespace UnityConsole
         Brown,
         Green,
         Red,
-        Black,
+        Lavender,
         White
     }
 
@@ -40,7 +40,7 @@ namespace UnityConsole
                 ConsoleTextColor.Yellow => "#FED83D",
                 ConsoleTextColor.Lime => "#80C71F",
                 ConsoleTextColor.Pink => "#F38BAA",
-                ConsoleTextColor.Gray => "#474F52",
+                ConsoleTextColor.Toxic => "#00FF41",
                 ConsoleTextColor.LightGray => "#9D9D97",
                 ConsoleTextColor.Cyan => "#169C9C",
                 ConsoleTextColor.Purple => "#8932B8",
@@ -48,7 +48,7 @@ namespace UnityConsole
                 ConsoleTextColor.Brown => "#835432",
                 ConsoleTextColor.Green => "#5E7C16",
                 ConsoleTextColor.Red => "#B02E26",
-                ConsoleTextColor.Black => "#1D1D21",
+                ConsoleTextColor.Lavender => "#B388FF",
                 ConsoleTextColor.White => "#FFFFFF",
                 _ => "#FFFFFF"
             };
