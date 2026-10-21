@@ -170,6 +170,15 @@ namespace UnityConsole
 
         private void DrawGUI ()
         {
+            // ESC closes the console from any state. Handled here (not in HandleGUIInput): that method
+            // only runs when GetNameOfFocusedControl matches "input", which may not hold even with a
+            // blinking caret, while key events still arrive through this event stream (Tab completion works).
+            if (Event.current.isKey && Event.current.keyCode == KeyCode.Escape)
+            {
+                Hide();
+                Event.current.Use();
+            }
+
             GUI.backgroundColor = BackgroundColor;
             DrawLogArea();
             GUI.SetNextControlName(inputControlName);
@@ -192,14 +201,6 @@ namespace UnityConsole
 
         private void HandleGUIInput ()
         {
-            // While this field has focus, key events reach only the IMGUI event stream — legacy
-            // Input.GetKeyDown (the Update() path) does not fire, so ESC is handled here too.
-            if (Event.current.isKey && Event.current.keyCode == KeyCode.Escape)
-            {
-                Hide();
-                Event.current.Use();
-            }
-
             if (inputBuffer.Count > 0 && Event.current.isKey && Event.current.keyCode == KeyCode.UpArrow)
             {
                 inputBufferIndex--;
