@@ -94,10 +94,13 @@ namespace UnityConsole
             };
 
             timestampStyle = new GUIStyle(Style);
+            // Segment labels are drawn without their own background: each log line gets a single underlay
+            // (see DrawSegments), because per-label backgrounds would overlap and cover word tails.
             messageStyles = new GUIStyle[3];
             for (int i = 0; i < messageStyles.Length; i++)
             {
                 var style = new GUIStyle(Style) { richText = false };
+                style.normal.background = null;
                 style.normal.textColor = i == 1 ? new Color(1f, .8f, 0f) : i == 2 ? new Color(1f, .33f, .33f) : Color.white;
                 messageStyles[i] = style;
             }
@@ -106,6 +109,7 @@ namespace UnityConsole
             foreach (ConsoleTextColor color in Enum.GetValues(typeof(ConsoleTextColor)))
             {
                 var style = new GUIStyle(Style) { richText = false };
+                style.normal.background = null;
                 style.normal.textColor = ConsoleTextColors.Get(color);
                 colorStyles[(int)color] = style;
             }
@@ -237,10 +241,14 @@ namespace UnityConsole
             GUI.EndClip();
         }
 
-        // Draws the entry segments left-to-right within rect. A color segment sets the style for all following
-        // text; when the line overflows it is truncated with an ellipsis at the overflow point.
+        // Draws the entry segments left-to-right within rect over a single underlay for the whole line. A color
+        // segment sets the style for all following text; when the line overflows it is truncated with an ellipsis
+        // at the overflow point. The underlay is drawn once per line because CalcSize does not include
+        // contentOffset: per-label backgrounds would start before the previous word's tail and cover it.
         private static void DrawSegments (ConsoleLog.Entry entry, Rect rect)
         {
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+
             float maxWidth = rect.width - Style.contentOffset.x * 2;
             ConsoleTextColor? currentColor = null;
             float x = 0f;
