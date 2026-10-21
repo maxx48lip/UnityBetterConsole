@@ -70,8 +70,9 @@ namespace UnityConsole
             if (options.Count > 0 && Event.current.keyCode == KeyCode.Tab)
             {
                 input = options[0].MethodName;
-                // External text change keeps the old caret index — move it to the end of the completed word.
-                ConsoleGUI.MoveCaretToEnd(input.Length);
+                // External text change keeps the old caret index and re-derives a selection over the
+                // changed region — move the caret to the end of the completed word and clear the highlight.
+                ConsoleGUI.MoveCaretToEnd(input);
             }
         }
     }

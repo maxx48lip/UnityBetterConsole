@@ -311,10 +311,12 @@ namespace UnityConsole
         }
 
         // IMGUI keeps the old caret index when a focused field's text is changed externally (Tab
-        // completion), leaving the caret mid-word. The live index lives in an internal per-control state
-        // object (UnityEngine.TextEditor inside GUIStateObjects.s_StateCache); move it to `position`.
+        // completion), leaving the caret mid-word — and re-derives a selection range over the changed
+        // region. The live state lives in an internal per-control object (UnityEngine.TextEditor inside
+        // GUIStateObjects.s_StateCache): move the caret to the end of `text` and clear every selection
+        // marker, then sync the previous-frame snapshot so the next pass sees no external change at all.
         // Reflection into UnityEngine internals — degrades to a no-op if the layout differs.
-        internal static void MoveCaretToEnd (int position)
+        internal static void MoveCaretToEnd (string text)
         {
             try
             {
@@ -341,11 +343,25 @@ namespace UnityConsole
                 }
                 if (target == null) return;
 
+                int position = text.Length;
                 var selObj = teType.GetField("m_TextSelecting", anyInstance).GetValue(target);
-                var cursorField = selObj.GetType().GetField("m_CursorIndex", anyInstance);
-                if (cursorField != null) cursorField.SetValue(selObj, position);
+                var selType = selObj.GetType();
+                // Caret at the end, no selection: clear the alt anchor and restore the "no selection" sentinel.
+                SetIfPresent(selType, "m_CursorIndex", selObj, position);
+                SetIfPresent(selType, "iAltCursorPos", selObj, -1);
+                SetIfPresent(selType, "m_SelectIndex", selObj, int.MaxValue);
+                // Sync the previous-frame snapshot: next pass must not treat this as an external text change.
+                SetIfPresent(teType, "oldText", target, text);
+                SetIfPresent(teType, "oldPos", target, position);
+                SetIfPresent(teType, "oldSelectPos", target, position);
             }
             catch { /* dev console: caret stays where IMGUI left it */ }
+        }
+
+        static void SetIfPresent (Type type, string fieldName, object instance, object value)
+        {
+            var field = type.GetField(fieldName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (field != null) field.SetValue(instance, value);
         }
     }
 }
