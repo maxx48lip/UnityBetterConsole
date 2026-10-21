@@ -153,6 +153,9 @@ namespace UnityConsole
             if (!Application.isPlaying) return;
             if (Input.GetKeyUp(ToggleKey) || MultitouchActive())
                 Toggle();
+            // ESC closes the console even when the input field has focus.
+            if (guiProxy.enabled && Input.GetKeyDown(KeyCode.Escape))
+                Hide();
 
             bool MultitouchActive ()
             {
@@ -209,7 +212,6 @@ namespace UnityConsole
                 inputBuffer.Add(input);
                 inputBufferIndex = 0;
                 input = string.Empty;
-                Hide();
             }
         }
 
