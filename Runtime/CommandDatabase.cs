@@ -19,6 +19,14 @@ namespace UnityConsole
                 Debug.LogWarning($"UnityConsole: Command `{methodName}` is not registered in the database.");
                 return;
             }
+
+            // Built-in commands with optional arguments bypass the strict arity check below.
+            if (string.Equals(methodName, BuiltInCommands.HelpAlias, StringComparison.OrdinalIgnoreCase))
+            {
+                BuiltInCommands.Dispatch(args);
+                return;
+            }
+
             var methodInfo = methodInfoCache[methodName];
             var parametersInfo = methodInfo.GetParameters();
             if (parametersInfo.Length != args.Length)
@@ -34,12 +42,27 @@ namespace UnityConsole
 
         internal static void RegisterCommands (Dictionary<string, MethodInfo> commands = null)
         {
-            methodInfoCache = commands ?? AppDomain.CurrentDomain.GetAssemblies()
-                .Where(assembly => !assembly.IsDynamic)
-                .SelectMany(assembly => assembly.GetExportedTypes())
-                .SelectMany(type => type.GetMethods(BindingFlags.Static | BindingFlags.Public))
-                .Where(method => method.GetCustomAttribute<ConsoleCommandAttribute>() != null)
-                .ToDictionary(method => method.GetCustomAttribute<ConsoleCommandAttribute>().Alias ?? method.Name, StringComparer.OrdinalIgnoreCase);
+            methodInfoCache = commands != null
+                ? new Dictionary<string, MethodInfo>(commands, StringComparer.OrdinalIgnoreCase)
+                : AppDomain.CurrentDomain.GetAssemblies()
+                    .Where(assembly => !assembly.IsDynamic)
+                    .SelectMany(assembly => assembly.GetExportedTypes())
+                    .SelectMany(type => type.GetMethods(BindingFlags.Static | BindingFlags.Public))
+                    .Where(method => method.GetCustomAttribute<ConsoleCommandAttribute>() != null)
+                    .ToDictionary(method => method.GetCustomAttribute<ConsoleCommandAttribute>().Alias ?? method.Name, StringComparer.OrdinalIgnoreCase);
+
+            // Reserved aliases belong to the package's built-in commands — project code cannot take them.
+            foreach (var alias in BuiltInCommands.ReservedAliases)
+            {
+                if (methodInfoCache.ContainsKey(alias))
+                {
+                    Debug.LogError($"UnityConsole: command `{alias}` is reserved by the package's built-in commands — rename your [ConsoleCommand] method or its alias.");
+                    methodInfoCache.Remove(alias);
+                }
+            }
+
+            foreach (var kv in BuiltInCommands.All)
+                methodInfoCache[kv.Key] = kv.Value;
         }
     }
 }
