@@ -46,13 +46,22 @@ namespace UnityConsole
             debugMethod(message);
         }
 
-        internal static IReadOnlyList<Entry> GetRecent (int count)
+        internal static int Count
+        {
+            get { lock (gate) return entries.Count; }
+        }
+
+        /// <summary>
+        /// Returns a page of up to count entries. Offset counts back from the newest entry: 0 is the latest page.
+        /// </summary>
+        internal static IReadOnlyList<Entry> GetPage (int count, int offset)
         {
             lock (gate)
             {
                 var all = new List<Entry>(entries);
-                int start = Math.Max(0, all.Count - count);
-                return all.GetRange(start, all.Count - start);
+                int end = Math.Max(0, all.Count - Math.Max(0, offset));
+                int start = Math.Max(0, end - count);
+                return all.GetRange(start, end - start);
             }
         }
     }

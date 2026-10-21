@@ -41,8 +41,9 @@ namespace UnityConsole
         public static bool ShowCompleteList { get; set; } = true;
         /// <summary>
         /// Number of recent ConsoleLog lines shown above the input bar. 0 hides the log area.
+        /// The full history (ConsoleLog.MaxEntries) is reachable with the up/down buttons next to EXECUTE.
         /// </summary>
-        public static int LogLines { get; set; } = 10;
+        public static int LogLines { get; set; } = 20;
 
         internal static Vector2 Size { get; private set; }
         internal static Vector2 Scale { get; private set; }
@@ -58,10 +59,11 @@ namespace UnityConsole
         private static readonly Regex regex = new Regex("'(.+?)'|\"(.+?)\"|([^ ]+)", RegexOptions.Compiled);
         private static readonly List<string> inputBuffer = new List<string>();
         private static OnGUIProxy guiProxy;
-        private static Rect consoleRect, execButtonRect, closeButtonRect;
+        private static Rect consoleRect, logUpButtonRect, logDownButtonRect, execButtonRect, closeButtonRect;
         private static bool setFocusPending;
         private static string input;
         private static int inputBufferIndex;
+        private static int logScrollOffset;
 
         public static void Initialize (Dictionary<string, MethodInfo> commands = null)
         {
@@ -75,9 +77,12 @@ namespace UnityConsole
 
             instance = hostObject.AddComponent<ConsoleGUI>();
             Scale = ScaleByResolution ? new Vector2(Mathf.Max(Screen.width / 1920f, 1), Mathf.Max(Screen.height / 1080f, 1)) : Vector2.one;
-            Size = new Vector2(Screen.width - 125 * Scale.x, 25 * Scale.y);
+            // Right-side button row: [input][up][down][EXECUTE][HIDE] = 30 + 30 + 75 + 50 scaled units.
+            Size = new Vector2(Screen.width - 185 * Scale.x, 25 * Scale.y);
             consoleRect = new Rect(0, 0, Size.x, Size.y);
-            execButtonRect = new Rect(Size.x, 0, 75 * Scale.x, Size.y);
+            logUpButtonRect = new Rect(Size.x, 0, 30 * Scale.x, Size.y);
+            logDownButtonRect = new Rect(Size.x + 30 * Scale.x, 0, 30 * Scale.x, Size.y);
+            execButtonRect = new Rect(Size.x + 60 * Scale.x, 0, 75 * Scale.x, Size.y);
             closeButtonRect = new Rect(Screen.width - 050 * Scale.x, 0, 50 * Scale.x, Size.y);
             Style = new GUIStyle {
                 richText = true,
@@ -113,10 +118,16 @@ namespace UnityConsole
         {
             guiProxy.enabled = true;
             setFocusPending = true;
+            logScrollOffset = 0;
         }
 
         public static void Hide () => guiProxy.enabled = false;
-        public static void Toggle () => guiProxy.enabled = !guiProxy.enabled;
+        // Route through Show so the input field gets focus (blinking caret, typing works immediately).
+        public static void Toggle ()
+        {
+            if (guiProxy.enabled) Hide();
+            else Show();
+        }
         private void OnApplicationQuit () => Destroy();
 
         #if ENABLE_LEGACY_INPUT_MANAGER
@@ -143,14 +154,17 @@ namespace UnityConsole
             DrawLogArea();
             GUI.SetNextControlName(inputControlName);
             input = GUI.TextField(consoleRect, input, Style);
+            if (GUI.Button(logUpButtonRect, "↑", Style)) ScrollLog(-1);
+            if (GUI.Button(logDownButtonRect, "↓", Style)) ScrollLog(1);
             if (GUI.Button(execButtonRect, "EXECUTE", Style)) ExecuteInput();
             if (GUI.Button(closeButtonRect, "HIDE", Style)) Hide();
             if (ShowCompleteList) CompleteGUI.Draw(ref input);
 
+            // Retry until the focus actually lands on the input field (it may not exist on the first frame).
             if (setFocusPending)
             {
                 GUI.FocusControl(inputControlName);
-                setFocusPending = false;
+                if (GUI.GetNameOfFocusedControl() == inputControlName) setFocusPending = false;
             }
 
             if (GUI.GetNameOfFocusedControl() == inputControlName) HandleGUIInput();
@@ -182,12 +196,19 @@ namespace UnityConsole
             }
         }
 
+        // direction: -1 scrolls toward older entries, +1 back to the newest.
+        private static void ScrollLog (int direction)
+        {
+            int maxOffset = Math.Max(0, ConsoleLog.Count - LogLines);
+            logScrollOffset = Mathf.Clamp(logScrollOffset - direction * LogLines, 0, maxOffset);
+        }
+
         private static void DrawLogArea ()
         {
             LogAreaHeight = 0f;
             if (LogLines <= 0) return;
 
-            var recent = ConsoleLog.GetRecent(LogLines);
+            var recent = ConsoleLog.GetPage(LogLines, logScrollOffset);
             if (recent.Count == 0) return;
 
             float lineHeight = Style.fontSize + Mathf.CeilToInt(10 * Scale.y);
