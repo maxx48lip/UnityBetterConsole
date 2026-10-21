@@ -68,7 +68,11 @@ namespace UnityConsole
         {
             if (!Event.current.isKey) return;
             if (options.Count > 0 && Event.current.keyCode == KeyCode.Tab)
+            {
                 input = options[0].MethodName;
+                // External text change keeps the old caret index — move it to the end of the completed word.
+                ConsoleGUI.MoveCaretToEnd(input.Length);
+            }
         }
     }
 }

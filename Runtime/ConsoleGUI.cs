@@ -62,7 +62,6 @@ namespace UnityConsole
         private static readonly List<string> inputBuffer = new List<string>();
         private static OnGUIProxy guiProxy;
         private static Rect consoleRect, logUpButtonRect, logDownButtonRect, execButtonRect, closeButtonRect;
-        private static bool setFocusPending;
         private static string input;
         private static int inputBufferIndex;
         private static int logScrollOffset;
@@ -134,7 +133,6 @@ namespace UnityConsole
         public static void Show ()
         {
             guiProxy.enabled = true;
-            setFocusPending = true;
             logScrollOffset = 0;
         }
 
@@ -189,12 +187,11 @@ namespace UnityConsole
             if (GUI.Button(closeButtonRect, "HIDE", Style)) Hide();
             if (ShowCompleteList) CompleteGUI.Draw(ref input);
 
-            // Retry until the focus actually lands on the input field (it may not exist on the first frame).
-            if (setFocusPending)
-            {
-                GUI.FocusControl(inputControlName);
-                if (GUI.GetNameOfFocusedControl() == inputControlName) setFocusPending = false;
-            }
+            // Keep keyboard focus on the input field for as long as the console is open. IMGUI drops it
+            // after Enter executes a command, and without focus the caret disappears until you click the
+            // field again. No-op while already focused; on the very first frame the field may not exist
+            // yet — the next frame retries.
+            GUI.FocusControl(inputControlName);
 
             if (GUI.GetNameOfFocusedControl() == inputControlName) HandleGUIInput();
         }
@@ -311,6 +308,44 @@ namespace UnityConsole
             if (parts.Count == 0) return;
             if (parts.Count == 1) CommandDatabase.ExecuteCommand(parts[0]);
             else CommandDatabase.ExecuteCommand(parts[0], parts.GetRange(1, parts.Count - 1).ToArray());
+        }
+
+        // IMGUI keeps the old caret index when a focused field's text is changed externally (Tab
+        // completion), leaving the caret mid-word. The live index lives in an internal per-control state
+        // object (UnityEngine.TextEditor inside GUIStateObjects.s_StateCache); move it to `position`.
+        // Reflection into UnityEngine internals — degrades to a no-op if the layout differs.
+        internal static void MoveCaretToEnd (int position)
+        {
+            try
+            {
+                var cacheType = typeof(GUIUtility).Assembly.GetType("UnityEngine.GUIStateObjects");
+                var cacheField = cacheType?.GetField("s_StateCache", BindingFlags.Static | BindingFlags.NonPublic);
+                if (cacheField == null) return;
+                var dict = cacheField.GetValue(null) as System.Collections.IDictionary;
+                if (dict == null) return;
+
+                const BindingFlags anyInstance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                var teType = typeof(UnityEngine.TextEditor);
+                var idField = teType.GetField("controlID", anyInstance);
+                var styleField = teType.GetField("style", anyInstance);
+                if (idField == null || styleField == null) return;
+
+                int focusedId = GUIUtility.keyboardControl;
+                UnityEngine.TextEditor target = null;
+                foreach (System.Collections.DictionaryEntry de in dict)
+                {
+                    if (!(de.Value is UnityEngine.TextEditor te)) continue;
+                    // Prefer the currently focused field; fall back to our input field by its unique style.
+                    if (focusedId != 0 && (int)idField.GetValue(te) == focusedId) { target = te; break; }
+                    if (target == null && ReferenceEquals(styleField.GetValue(te), Style)) target = te;
+                }
+                if (target == null) return;
+
+                var selObj = teType.GetField("m_TextSelecting", anyInstance).GetValue(target);
+                var cursorField = selObj.GetType().GetField("m_CursorIndex", anyInstance);
+                if (cursorField != null) cursorField.SetValue(selObj, position);
+            }
+            catch { /* dev console: caret stays where IMGUI left it */ }
         }
     }
 }
