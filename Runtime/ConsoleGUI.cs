@@ -51,6 +51,7 @@ namespace UnityConsole
         internal static float LogAreaHeight { get; private set; }
 
         private static GUIStyle timestampStyle;
+        private static GUIStyle lineUnderlayStyle;
         private static GUIStyle[] messageStyles;
         private static GUIStyle[] colorStyles;
         private static float timestampWidth;
@@ -113,6 +114,9 @@ namespace UnityConsole
                 style.normal.textColor = ConsoleTextColors.Get(color);
                 colorStyles[(int)color] = style;
             }
+
+            // Tinted by GUI.backgroundColor like every other control, unlike a raw DrawTexture call.
+            lineUnderlayStyle = new GUIStyle { normal = new GUIStyleState { background = Texture2D.whiteTexture } };
 
             guiProxy = hostObject.AddComponent<OnGUIProxy>();
             guiProxy.OnGUIDelegate = instance.DrawGUI;
@@ -247,7 +251,7 @@ namespace UnityConsole
         // contentOffset: per-label backgrounds would start before the previous word's tail and cover it.
         private static void DrawSegments (ConsoleLog.Entry entry, Rect rect)
         {
-            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.Box(rect, GUIContent.none, lineUnderlayStyle);
 
             float maxWidth = rect.width - Style.contentOffset.x * 2;
             ConsoleTextColor? currentColor = null;

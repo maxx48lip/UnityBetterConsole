@@ -21,7 +21,8 @@ namespace UnityConsole
         Brown,
         Green,
         Red,
-        Black
+        Black,
+        White
     }
 
     public static class ConsoleTextColors
@@ -48,6 +49,7 @@ namespace UnityConsole
                 ConsoleTextColor.Green => "#5E7C16",
                 ConsoleTextColor.Red => "#B02E26",
                 ConsoleTextColor.Black => "#1D1D21",
+                ConsoleTextColor.White => "#FFFFFF",
                 _ => "#FFFFFF"
             };
             return ColorUtility.TryParseHtmlString(hex, out var value) ? value : Color.white;
