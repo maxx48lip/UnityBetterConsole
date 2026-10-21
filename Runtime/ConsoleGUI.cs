@@ -192,6 +192,14 @@ namespace UnityConsole
 
         private void HandleGUIInput ()
         {
+            // While this field has focus, key events reach only the IMGUI event stream — legacy
+            // Input.GetKeyDown (the Update() path) does not fire, so ESC is handled here too.
+            if (Event.current.isKey && Event.current.keyCode == KeyCode.Escape)
+            {
+                Hide();
+                Event.current.Use();
+            }
+
             if (inputBuffer.Count > 0 && Event.current.isKey && Event.current.keyCode == KeyCode.UpArrow)
             {
                 inputBufferIndex--;
