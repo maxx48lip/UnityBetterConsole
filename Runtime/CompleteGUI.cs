@@ -58,7 +58,7 @@ namespace UnityConsole
             var width = ConsoleGUI.Style.CalcSize(label).x + ConsoleGUI.Style.contentOffset.x * 2;
             if (width > maxWidth) maxWidth = width;
             var height = ConsoleGUI.Size.y;
-            var y = ConsoleGUI.Size.y + options.IndexOf(option) * height;
+            var y = ConsoleGUI.Size.y + ConsoleGUI.LogAreaHeight + options.IndexOf(option) * height;
             var rect = new Rect(0, y, maxWidth, height);
             if (GUI.Button(rect, label, ConsoleGUI.Style) && !input.StartsWith(option.MethodName, StringComparison.OrdinalIgnoreCase))
                 input = option.MethodName;

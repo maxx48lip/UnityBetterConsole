@@ -1,10 +1,10 @@
 {
     "name": "com.elringus.unityconsole",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "displayName": "UnityConsole",
     "description": "Development console for Unity game engine",
     "unity": "2019.4",
-    "repository": "https://github.com/Elringus/UnityConsole",
+    "repository": "https://github.com/maxx48lip/UnityBetterConsole",
     "author": {
         "name": "Elringus",
         "url": "https://elringus.me"

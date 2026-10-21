@@ -39,10 +39,15 @@ namespace UnityConsole
         /// Whether to show auto-complete list of available commands when typing in console.
         /// </summary>
         public static bool ShowCompleteList { get; set; } = true;
+        /// <summary>
+        /// Number of recent ConsoleLog lines shown above the input bar. 0 hides the log area.
+        /// </summary>
+        public static int LogLines { get; set; } = 10;
 
         internal static Vector2 Size { get; private set; }
         internal static Vector2 Scale { get; private set; }
         internal static GUIStyle Style { get; private set; }
+        internal static float LogAreaHeight { get; private set; }
 
         private const string inputControlName = "input";
         private static ConsoleGUI instance;
@@ -121,13 +126,8 @@ namespace UnityConsole
 
         private void DrawGUI ()
         {
-            if (Event.current.isKey && Event.current.keyCode == ToggleKey)
-            {
-                Hide();
-                return;
-            }
-
             GUI.backgroundColor = BackgroundColor;
+            DrawLogArea();
             GUI.SetNextControlName(inputControlName);
             input = GUI.TextField(consoleRect, input, Style);
             if (GUI.Button(execButtonRect, "EXECUTE", Style)) ExecuteInput();
@@ -167,6 +167,49 @@ namespace UnityConsole
                 input = string.Empty;
                 Hide();
             }
+        }
+
+        private static void DrawLogArea ()
+        {
+            LogAreaHeight = 0f;
+            if (LogLines <= 0) return;
+
+            var recent = ConsoleLog.GetRecent(LogLines);
+            if (recent.Count == 0) return;
+
+            float lineHeight = Style.fontSize + Mathf.CeilToInt(10 * Scale.y);
+            LogAreaHeight = lineHeight * recent.Count;
+            var areaRect = new Rect(consoleRect.x, consoleRect.yMax, consoleRect.width, LogAreaHeight);
+            GUI.BeginClip(areaRect);
+            for (int i = 0; i < recent.Count; i++)
+            {
+                string message = FitToWidth(EscapeRichText(recent[i].Message), areaRect.width - Style.contentOffset.x * 2);
+                var line = BuildLine(recent[i], message);
+                GUI.Label(new Rect(0, areaRect.height - lineHeight * (recent.Count - i), areaRect.width, lineHeight), line, Style);
+            }
+            GUI.EndClip();
+        }
+
+        private static string BuildLine (ConsoleLog.Entry entry, string escapedMessage)
+        {
+            string open, close;
+            switch (entry.Level)
+            {
+                case ConsoleLog.Level.Warning: open = "<color=#ffcc00>"; close = "</color>"; break;
+                case ConsoleLog.Level.Error: open = "<color=#ff5555>"; close = "</color>"; break;
+                default: open = ""; close = ""; break;
+            }
+            return $"<color=#888>{entry.Timestamp:HH:mm:ss}</color> {open}{escapedMessage}{close}";
+        }
+
+        private static string EscapeRichText (string text) => text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
+
+        private static string FitToWidth (string text, float maxWidth)
+        {
+            if (Style.CalcSize(new GUIContent(text)).x <= maxWidth) return text;
+            while (text.Length > 1 && Style.CalcSize(new GUIContent(text + "…")).x > maxWidth)
+                text = text.Substring(0, text.Length - 1);
+            return text + "…";
         }
 
         private static void ExecuteInput ()
