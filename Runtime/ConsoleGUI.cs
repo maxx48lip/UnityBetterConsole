@@ -289,6 +289,21 @@ namespace UnityConsole
             }
         }
 
+        // Number of argument tokens after the command name. Uses the same tokenization as ExecuteInput,
+        // so a quoted string counts as a single argument.
+        internal static int CountArguments (string input)
+        {
+            var count = 0;
+            foreach (Match match in regex.Matches(input))
+                for (int i = 1; i < match.Groups.Count; i++)
+                    if (match.Groups[i].Success)
+                    {
+                        count++;
+                        break;
+                    }
+            return Math.Max(0, count - 1);
+        }
+
         private static void ExecuteInput ()
         {
             if (string.IsNullOrWhiteSpace(input)) return;

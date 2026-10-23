@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using UnityEngine;
 
 namespace UnityConsole
@@ -10,18 +11,27 @@ namespace UnityConsole
     {
         private struct Option
         {
-            public string Label, MethodName;
+            public string MethodName, Label;
+            public string[] Parameters;
+            public int ArgCount;
         }
 
         private static readonly List<Option> options = new List<Option>();
         private static string cachedInput;
         private static float maxWidth;
+        private static bool blinkOn;
 
         public static void Draw (ref string input)
         {
             if (string.IsNullOrEmpty(input)) return;
+            var newBlink = Mathf.PingPong(Time.time * 2f, 1f) > .5f; // toggles every half second
+            bool blinkFlipped = newBlink != blinkOn;
+            blinkOn = newBlink;
+
             if (!string.Equals(input, cachedInput, StringComparison.OrdinalIgnoreCase))
                 RebuildOptions(input);
+            else if (blinkFlipped && options.Count > 0)
+                RefreshLabels();
             foreach (var option in options)
                 DrawOption(option, ref input);
             HandleInput(ref input);
@@ -32,10 +42,11 @@ namespace UnityConsole
             options.Clear();
             cachedInput = input;
             maxWidth = 0;
+            var argCount = ConsoleGUI.CountArguments(input);
             foreach (var kv in CommandDatabase.Registered)
                 if (input.Length == 1 && char.IsWhiteSpace(input[0]) ||
                     kv.Key.StartsWith(ExtractMethodName(input), StringComparison.OrdinalIgnoreCase))
-                    options.Add(BuildOption(kv.Key, kv.Value));
+                    options.Add(BuildOption(kv.Key, kv.Value, argCount));
         }
 
         private static string ExtractMethodName (string input)
@@ -45,14 +56,38 @@ namespace UnityConsole
             return firstSpaceIndex > 0 ? trimmed.Substring(0, firstSpaceIndex - 1) : trimmed;
         }
 
-        private static Option BuildOption (string methodName, MethodInfo info)
+        private static Option BuildOption (string methodName, MethodInfo info, int argCount)
         {
             // Custom hint (CommandHints.SetParameters) — shown instead of the method signature.
             var parameters = CommandHints.TryGetParameters(methodName, out var hints)
-                ? string.Join(", ", hints.Select(h => $"{h.Name}: {h.Type}"))
-                : string.Join(", ", info.GetParameters().Select(p => $"{p.Name}: {p.ParameterType.Name}"));
-            var label = $"{methodName} <color=#aaa>({parameters})</color>";
-            return new Option { Label = label, MethodName = methodName };
+                ? hints.Select(h => $"{h.Name}: {h.Type}").ToArray()
+                : info.GetParameters().Select(p => $"{p.Name}: {p.ParameterType.Name}").ToArray();
+            return new Option { MethodName = methodName, Parameters = parameters, ArgCount = argCount, Label = BuildLabel(methodName, parameters, argCount) };
+        }
+
+        // Entered parameters stay bright, the one being typed blinks gray/white, the rest stay dim.
+        private static string BuildLabel (string methodName, string[] parameters, int argCount)
+        {
+            var sb = new StringBuilder();
+            sb.Append(methodName).Append(" <color=#aaa>(");
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                if (i > 0) sb.Append(", ");
+                var color = i < argCount || (i == argCount && blinkOn) ? "#fff" : "#aaa";
+                sb.Append("<color=").Append(color).Append('>').Append(parameters[i]).Append("</color>");
+            }
+            sb.Append(")</color>");
+            return sb.ToString();
+        }
+
+        private static void RefreshLabels ()
+        {
+            for (int i = 0; i < options.Count; i++)
+            {
+                var option = options[i];
+                option.Label = BuildLabel(option.MethodName, option.Parameters, option.ArgCount);
+                options[i] = option;
+            }
         }
 
         private static void DrawOption (Option option, ref string input)

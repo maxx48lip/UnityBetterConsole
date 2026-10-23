@@ -122,3 +122,5 @@ UnityConsole.CommandHints.SetParameters("createRuin",
 ```
 
 The hint replaces the signature-derived list for that command: `help` will show `createRuin <x:Int32> <y:Int32> ...`, and autocomplete will suggest `createRuin (x: Int32, y: Int32, ...)`. Commands without a registered hint keep showing their method signature.
+
+While typing arguments, the snippet highlights progress: parameters that already have a value in the input stay bright white, the parameter being typed next blinks gray/white, and the rest remain dim. A quoted string counts as a single argument.
