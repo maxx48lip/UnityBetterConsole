@@ -110,3 +110,15 @@ public class TestPreprocessor : MonoBehaviour
 ```
 
 — will intercept commands starting with `@` and instead log the input. Notice, that when a preprocessor delegate returns `null` it will stop the default console behaviour.
+
+## Custom Hints
+
+By default, `help` and Tab autocomplete show a command's parameters from its method signature (`name: Type`). When the actual signature differs from what is convenient to display — for example, a variable number of arguments packed into one string parameter — register custom parameter hints for the command alias:
+
+```csharp
+UnityConsole.CommandHints.SetParameters("createRuin",
+    ("x", "Int32"), ("y", "Int32"), ("n", "Int32"), ("level", "Int32"),
+    ("scavenger", "Int32"), ("melee", "Int32"));
+```
+
+The hint replaces the signature-derived list for that command: `help` will show `createRuin <x:Int32> <y:Int32> ...`, and autocomplete will suggest `createRuin (x: Int32, y: Int32, ...)`. Commands without a registered hint keep showing their method signature.

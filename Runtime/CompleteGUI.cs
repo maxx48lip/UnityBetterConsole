@@ -47,8 +47,11 @@ namespace UnityConsole
 
         private static Option BuildOption (string methodName, MethodInfo info)
         {
-            var parameters = info.GetParameters().Select(p => $"{p.Name}: {p.ParameterType.Name}");
-            var label = $"{methodName} <color=#aaa>({string.Join(", ", parameters)})</color>";
+            // Custom hint (CommandHints.SetParameters) — shown instead of the method signature.
+            var parameters = CommandHints.TryGetParameters(methodName, out var hints)
+                ? string.Join(", ", hints.Select(h => $"{h.Name}: {h.Type}"))
+                : string.Join(", ", info.GetParameters().Select(p => $"{p.Name}: {p.ParameterType.Name}"));
+            var label = $"{methodName} <color=#aaa>({parameters})</color>";
             return new Option { Label = label, MethodName = methodName };
         }
 

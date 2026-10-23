@@ -68,6 +68,10 @@ namespace UnityConsole
             // The built-in help takes an optional page argument.
             if (string.Equals(kv.Key, HelpAlias, StringComparison.OrdinalIgnoreCase)) return "[page]";
 
+            // Custom hint (CommandHints.SetParameters) — shown instead of the method signature.
+            if (CommandHints.TryGetParameters(kv.Key, out var hints))
+                return " " + string.Join(" ", hints.Select(h => $"<{h.Name}:{h.Type}>"));
+
             var parameters = kv.Value.GetParameters();
             if (parameters.Length == 0) return "";
             return " " + string.Join(" ", parameters.Select(p => $"<{p.Name}:{p.ParameterType.Name}>"));
